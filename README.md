@@ -1,83 +1,91 @@
 # url-shortener-api
 
-![Python](https://img.shields.io/badge/Python-3.12+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green) ![SQLite](https://img.shields.io/badge/SQLite-embebido-lightgrey) ![License](https://img.shields.io/badge/license-MIT-orange)
+![CI](https://github.com/Quesillo27/url-shortener-api/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-orange)
 
-API REST para acortar URLs con alias personalizados, expiración, estadísticas de clics por día y top URLs. Construida con FastAPI + SQLite — sin dependencias externas, lista para Docker.
+API REST para acortar URLs con alias personalizados, expiracion, estadisticas de clics y mantenimiento basico del enlace. Construida con FastAPI + SQLite, lista para correr localmente o en Docker sin servicios externos.
 
-## Instalación en 3 comandos
+## Instalacion en 3 comandos
 
 ```bash
 git clone https://github.com/Quesillo27/url-shortener-api
 cd url-shortener-api
-pip install -r requirements.txt
+./setup.sh
 ```
 
-## Uso
+## Uso rapido
 
 ```bash
-uvicorn main:app --reload   # inicia el servidor en puerto 8000
-# Documentación interactiva: http://localhost:8000/docs
+uvicorn main:app --reload
+# Swagger UI: http://localhost:8000/docs
 ```
 
-## Ejemplo
+## Ejemplos reales
 
 ```bash
-# 1. Acortar una URL
+# Crear URL corta
 curl -s -X POST http://localhost:8000/shorten \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://github.com/Quesillo27", "alias": "gh"}'
-# → {"alias":"gh","short_url":"http://localhost:8000/gh","click_count":0,...}
+  -d '{"url":"https://github.com/Quesillo27","alias":"gh"}'
 
-# 2. Redirigir (vía browser o curl -L)
-curl -L http://localhost:8000/gh
-# → redirige a https://github.com/Quesillo27
+# Buscar URLs por alias o destino
+curl -s "http://localhost:8000/api/urls?search=gh&active_only=true"
 
-# 3. Ver estadísticas
-curl http://localhost:8000/api/urls/gh/stats
-# → {"total_clicks":1,"clicks_by_day":[{"day":"2026-04-14","count":1}],...}
+# Actualizar destino de una URL existente
+curl -s -X PATCH http://localhost:8000/api/urls/gh \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://github.com/Quesillo27/url-shortener-api"}'
+
+# Ver salud y metricas
+curl -s http://localhost:8000/health
 ```
 
-## API — Endpoints disponibles
+## API
 
-| Método | Endpoint | Descripción |
+| Metodo | Endpoint | Descripcion |
 |--------|----------|-------------|
-| GET | `/health` | Estado del servicio |
+| GET | `/health` | Estado del servicio, uptime y metricas basicas |
 | POST | `/shorten` | Crear URL corta |
-| GET | `/{alias}` | Redirigir (registra clic) |
-| GET | `/api/urls` | Listar URLs con paginación |
-| GET | `/api/urls/{alias}` | Obtener info de una URL |
-| GET | `/api/urls/{alias}/stats` | Estadísticas de clics (30 días, histórico) |
-| DELETE | `/api/urls/{alias}` | Desactivar URL (borrado lógico) |
-| GET | `/api/stats/global` | Estadísticas globales + top 5 URLs |
-| GET | `/docs` | Documentación Swagger UI |
-
-## Body para POST /shorten
-
-```json
-{
-  "url": "https://ejemplo.com",          // requerido
-  "alias": "mi-link",                    // opcional (3-50 chars, [a-zA-Z0-9-_])
-  "expires_at": "2026-12-31T23:59:59Z"  // opcional (ISO 8601)
-}
-```
+| GET | `/{alias}` | Redirigir y registrar clic |
+| GET | `/api/urls` | Listar URLs con paginacion, `search`, `active_only`, `include_expired` |
+| GET | `/api/urls/{alias}` | Obtener una URL |
+| PATCH | `/api/urls/{alias}` | Actualizar destino, expiracion o estado |
+| GET | `/api/urls/{alias}/stats` | Estadisticas de clics y ultimo acceso |
+| DELETE | `/api/urls/{alias}` | Desactivar URL |
+| GET | `/api/stats/global` | Resumen global y top URLs |
 
 ## Variables de entorno
 
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `PORT` | `8000` | Puerto del servidor |
-| `DB_PATH` | `urls.db` | Ruta al archivo SQLite |
-| `BASE_URL` | `http://localhost:8000` | URL base para generar short links |
-| `ALIAS_LENGTH` | `6` | Longitud de alias auto-generados |
-| `MAX_CLICKS_HISTORY` | `100` | Máx. clics recientes en /stats |
+| Variable | Descripcion | Default | Obligatoria |
+|----------|-------------|---------|-------------|
+| `PORT` | Puerto del servidor | `8000` | No |
+| `DB_PATH` | Ruta al archivo SQLite | `urls.db` | No |
+| `BASE_URL` | URL base usada en `short_url` | `http://localhost:8000` | No |
+| `ALIAS_LENGTH` | Longitud del alias auto-generado | `6` | No |
+| `MAX_CLICKS_HISTORY` | Maximo de clics recientes en stats | `100` | No |
+| `LOG_LEVEL` | Nivel de logging | `INFO` | No |
+| `RATE_LIMIT_WINDOW_SECONDS` | Ventana del rate limit | `60` | No |
+| `RATE_LIMIT_MAX_REQUESTS` | Requests por IP en la ventana | `120` | No |
 
 ## Docker
 
 ```bash
 docker build -t url-shortener-api .
-docker run -p 8000:8000 -v $(pwd)/data:/data url-shortener-api
+docker run --rm -p 8000:8000 -v $(pwd)/data:/data url-shortener-api
 ```
 
-## Contribuir
+## DX
 
-PRs bienvenidos. Corre `make test` antes de enviar.
+```bash
+make dev
+make test
+make build
+make docker
+```
+
+## Roadmap
+
+- Persistencia compartida para rate limiting en despliegues multi-instancia.
+- Exportacion de estadisticas agregadas en CSV o JSON descargable.
+- Soporte opcional para PostgreSQL si el volumen de trafico supera SQLite.

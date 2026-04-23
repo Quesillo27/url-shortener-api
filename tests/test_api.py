@@ -1,14 +1,14 @@
-"""
-Tests para url-shortener-api.
-Usa TestClient de FastAPI (httpx) — sin servidor externo.
-"""
-
 import os
+import sys
+from pathlib import Path
+
 import pytest
 
 # Use in-memory DB for tests
 os.environ["DB_PATH"] = ":memory:"
 os.environ["BASE_URL"] = "http://testserver"
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import main as app_module
 from fastapi.testclient import TestClient
@@ -28,6 +28,8 @@ def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+    assert r.json()["db"] == "connected"
+    assert "metrics" in r.json()
 
 
 # ─── Create URLs ─────────────────────────────────────────────────────────────
@@ -140,6 +142,19 @@ def test_list_urls_pagination(client):
     assert data["meta"]["pages"] == 3
 
 
+def test_list_urls_supports_search_filter(client):
+    client.post("/shorten", json={"url": "https://example.com/docs", "alias": "docs-link"})
+    client.post("/shorten", json={"url": "https://google.com", "alias": "search-google"})
+
+    response = client.get("/api/urls?search=docs")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["meta"]["search"] == "docs"
+    assert len(data["urls"]) == 1
+    assert data["urls"][0]["alias"] == "docs-link"
+
+
 def test_get_url_by_alias(client):
     client.post("/shorten", json={"url": "https://example.com", "alias": "info-test"})
     r = client.get("/api/urls/info-test")
@@ -169,6 +184,7 @@ def test_stats_records_click(client):
     r = client.get("/api/urls/stc-test/stats")
     assert r.json()["total_clicks"] == 1
     assert len(r.json()["recent_clicks"]) == 1
+    assert r.json()["last_click_at"] is not None
 
 
 def test_global_stats(client):
@@ -178,6 +194,37 @@ def test_global_stats(client):
     data = r.json()
     assert data["total_urls"] >= 1
     assert "top_urls" in data
+    assert "expired_urls" in data
+
+
+def test_patch_url_updates_destination_and_status(client):
+    client.post("/shorten", json={"url": "https://before.example.com", "alias": "editable"})
+
+    response = client.patch(
+        "/api/urls/editable",
+        json={"url": "https://after.example.com", "is_active": False},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["original"] == "https://after.example.com"
+    assert data["is_active"] is False
+
+
+def test_patch_url_requires_at_least_one_field(client):
+    client.post("/shorten", json={"url": "https://example.com", "alias": "needs-data"})
+
+    response = client.patch("/api/urls/needs-data", json={})
+
+    assert response.status_code == 422
+
+
+def test_patch_url_rejects_invalid_destination(client):
+    client.post("/shorten", json={"url": "https://example.com", "alias": "invalid-dest"})
+
+    response = client.patch("/api/urls/invalid-dest", json={"url": "notaurl"})
+
+    assert response.status_code == 422
 
 
 # ─── Delete ──────────────────────────────────────────────────────────────────
