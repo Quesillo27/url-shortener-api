@@ -15,3 +15,8 @@ curl -s -X PATCH "$BASE_URL/api/urls/gh-demo" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://github.com/Quesillo27/url-shortener-api"}'
 printf '\n'
+
+curl -s -X PATCH "$BASE_URL/api/urls/gh-demo" \
+  -H "Content-Type: application/json" \
+  -d '{"expires_at":null}'
+printf '\n'

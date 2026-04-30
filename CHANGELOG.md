@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## [1.1.1] - 2026-04-30
+
+### Fixed
+- `PATCH /api/urls/{alias}` ahora permite quitar una expiracion existente enviando `{"expires_at": null}` en lugar de ignorar el cambio.
+- El endpoint de actualizacion ahora rechaza `null` explicito en `url` e `is_active` para evitar updates ambiguos.
+
 ## [1.1.0] - 2026-04-23
 
 ### Added

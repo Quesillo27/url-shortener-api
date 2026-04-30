@@ -211,6 +211,22 @@ def test_patch_url_updates_destination_and_status(client):
     assert data["is_active"] is False
 
 
+def test_patch_url_allows_clearing_expiry(client):
+    client.post(
+        "/shorten",
+        json={
+            "url": "https://example.com",
+            "alias": "clear-expiry",
+            "expires_at": "2099-12-31T23:59:59Z",
+        },
+    )
+
+    response = client.patch("/api/urls/clear-expiry", json={"expires_at": None})
+
+    assert response.status_code == 200
+    assert response.json()["expires_at"] is None
+
+
 def test_patch_url_requires_at_least_one_field(client):
     client.post("/shorten", json={"url": "https://example.com", "alias": "needs-data"})
 
@@ -223,6 +239,14 @@ def test_patch_url_rejects_invalid_destination(client):
     client.post("/shorten", json={"url": "https://example.com", "alias": "invalid-dest"})
 
     response = client.patch("/api/urls/invalid-dest", json={"url": "notaurl"})
+
+    assert response.status_code == 422
+
+
+def test_patch_url_rejects_null_url(client):
+    client.post("/shorten", json={"url": "https://example.com", "alias": "null-url"})
+
+    response = client.patch("/api/urls/null-url", json={"url": None})
 
     assert response.status_code == 422
 

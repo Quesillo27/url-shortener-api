@@ -162,12 +162,19 @@ def record_redirect(alias: str, request: Request) -> str:
     return url_row["original"]
 
 
-def update_url(alias: str, url: Optional[str], expires_at: Optional[str], is_active: Optional[bool]) -> dict:
+def update_url(
+    alias: str,
+    url: Optional[str],
+    expires_at: Optional[str],
+    is_active: Optional[bool],
+    provided_fields: Optional[set[str]] = None,
+) -> dict:
     current = get_url_or_404(alias)
+    provided_fields = provided_fields or set()
     updates = {
-        "original": validate_url(url) if url is not None else current["original"],
-        "expires_at": expires_at if expires_at is not None else current["expires_at"],
-        "is_active": int(is_active if is_active is not None else bool(current["is_active"])),
+        "original": validate_url(url) if "url" in provided_fields else current["original"],
+        "expires_at": expires_at if "expires_at" in provided_fields else current["expires_at"],
+        "is_active": int(is_active if "is_active" in provided_fields else bool(current["is_active"])),
     }
 
     with db() as conn:

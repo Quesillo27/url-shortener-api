@@ -37,6 +37,11 @@ curl -s -X PATCH http://localhost:8000/api/urls/gh \
   -H "Content-Type: application/json" \
   -d '{"url":"https://github.com/Quesillo27/url-shortener-api"}'
 
+# Quitar la expiracion de una URL existente
+curl -s -X PATCH http://localhost:8000/api/urls/gh \
+  -H "Content-Type: application/json" \
+  -d '{"expires_at":null}'
+
 # Ver salud y metricas
 curl -s http://localhost:8000/health
 ```
@@ -50,7 +55,7 @@ curl -s http://localhost:8000/health
 | GET | `/{alias}` | Redirigir y registrar clic |
 | GET | `/api/urls` | Listar URLs con paginacion, `search`, `active_only`, `include_expired` |
 | GET | `/api/urls/{alias}` | Obtener una URL |
-| PATCH | `/api/urls/{alias}` | Actualizar destino, expiracion o estado |
+| PATCH | `/api/urls/{alias}` | Actualizar destino, expiracion o estado. Enviar `{"expires_at": null}` para quitar expiracion |
 | GET | `/api/urls/{alias}/stats` | Estadisticas de clics y ultimo acceso |
 | DELETE | `/api/urls/{alias}` | Desactivar URL |
 | GET | `/api/stats/global` | Resumen global y top URLs |

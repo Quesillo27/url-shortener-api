@@ -103,9 +103,14 @@ def get_url_route(alias: str):
 
 @app.patch("/api/urls/{alias}")
 def update_url_route(alias: str, payload: UpdateURLRequest):
-    if payload.url is None and payload.expires_at is None and payload.is_active is None:
+    provided_fields = payload.model_fields_set
+    if not provided_fields:
         raise HTTPException(status_code=422, detail="Debes enviar al menos un campo para actualizar")
-    return update_url(alias, payload.url, payload.expires_at, payload.is_active)
+    if "url" in provided_fields and payload.url is None:
+        raise HTTPException(status_code=422, detail="El campo 'url' no puede ser null")
+    if "is_active" in provided_fields and payload.is_active is None:
+        raise HTTPException(status_code=422, detail="El campo 'is_active' no puede ser null")
+    return update_url(alias, payload.url, payload.expires_at, payload.is_active, provided_fields)
 
 
 @app.get("/api/urls/{alias}/stats")
